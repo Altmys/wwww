@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 # --- الإعدادات ---
 # ضع رابط الويب هوك الخاص بك هنا
-DISCORD_WEBHOOK_URL = "ضع_رابط_الويب_هوك_هنا"
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1475965729932050503/oSnlVaHFmJ8Xlcd7opMtU2YtJUsSytKTL2gS1GwhJGTPgM8xxQKXgbgObzaku3ovYis0"
 COOLDOWN_SECONDS = 4
 last_sent_time = 0
 
